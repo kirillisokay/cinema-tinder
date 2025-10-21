@@ -7,8 +7,8 @@ const props = defineProps({
 </script>
 
 <template>
-  <div>
-    <h1>{{ error.statusCode }}</h1>
-    <NuxtLink to="/">Go back home</NuxtLink>
-  </div>
+  <UError :error="{
+    statusCode: error.statusCode,
+    message: 'Back to Home page'
+  }" />
 </template>
