@@ -1,15 +1,10 @@
 <template>
   <NuxtLoadingIndicator />
   <UApp>
-    <AppHeader />
-    <UMain class="flex">
+    <UMain>
       <UContainer>
         <slot />
       </UContainer>
     </UMain>
-    <AppFooter />
   </UApp>
 </template>
-
-<script>
-</script>

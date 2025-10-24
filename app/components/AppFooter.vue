@@ -6,6 +6,10 @@ const items: NavigationMenuItem[] = [
     label: 'developed by kirillisokay',
     to: 'https://github.com/kirillisokay',
     target: '_blank'
+  },
+  {
+    label: 'About',
+    to: 'about',
   }
 ]
 </script>
