@@ -5,9 +5,7 @@ const route = useRoute()
 
 const items = computed<NavigationMenuItem[]>(() => [
   {
-    label: 'Find Room',
-    to: '#',
-    active: route.path.startsWith('#')
+    label: '',
   },
 ])
 </script>
