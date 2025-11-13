@@ -1,5 +1,5 @@
-<script lang="ts">
-import { useWebSockets } from '@vueuse/core'
+<script setup lang="ts">
+import { useWebSocket } from '@vueuse/core'
 
 const { status, data, send, open, close } = useWebSocket('ws://localhost:3000/_ws')
 </script>
@@ -11,7 +11,7 @@ const { status, data, send, open, close } = useWebSocket('ws://localhost:3000/_w
 
       <UButton icon="i-lucide-rocket" size="md" color="secondary" variant="solid">Создать / найти комнату</UButton>
       <template #content>
-
+        <RoomCreationForm />
       </template>
     </UModal>
   </div>
