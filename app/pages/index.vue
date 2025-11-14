@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { useWebSocket } from '@vueuse/core'
-
-const { status, data, send, open, close } = useWebSocket('ws://localhost:3000/_ws')
 </script>
 
 <template>
