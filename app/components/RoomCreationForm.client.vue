@@ -1,42 +1,41 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from "zod";
-import { useWebSocket } from '@vueuse/core'
 
-const { status, data, send, open, close } = useWebSocket('ws://localhost:3000/_ws')
+const { joinRoom } = useCinemaTinderWS();
 
 const schema = z.object({
-  roomId: z.string("Название комнаты не может быть пустым")
-})
+  roomId: z.string().min(1, "Название комнаты не может быть пустым")
+});
 
-type Schema = z.output<typeof schema>
+type Schema = z.output<typeof schema>;
 
 const state = reactive<Partial<Schema>>({
   roomId: undefined
-})
+});
 
 const toast = useToast();
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
+  const { roomId } = event.data;
+  
   toast.add({
     title: 'Успех',
-    description: 'Комната создана',
+    description: 'Сейчас тебя перенаправит в комнату',
     color: 'success'
-  })
-
-  send(JSON.stringify({ type: 'create_room', roomId: event.data.roomId }))
-  console.log(event.data)
+  });
+  
+  joinRoom(roomId);
 }
 </script>
 
 <template>
   <UForm :schema="schema" :state="state" class="flex flex-col p-8 gap-y-4" @submit="onSubmit">
     <UFormField label="Room ID" name="roomId">
-      <UInput v-model="state.roomId" />
+      <UInput v-model="state.roomId" placeholder="room_123456_xyz" />
     </UFormField>
-
     <UButton type="submit" size="lg" class="justify-center">
-      Создать команту
+      Присоединиться к комнате
     </UButton>
   </UForm>
 </template>
