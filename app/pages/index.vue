@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { watch } from "vue";
-import { useRouter } from "vue-router";
-
 const toast = useToast();
-const router = useRouter();
 
-const { joinRoom, createRoom, roomId } = useCinemaTinderWS();
+const { createRoom } = useCinemaTinderWS();
 
 const handleCreateRoom = async () => {
-createRoom()
+  try {
+    await createRoom();
     toast.add({
       title: 'Успех',
-      description: 'Сейчас тебя перенаправит в комнату',
+      description: 'Комната создана!',
       color: 'success'
     });
-
-joinRoom(roomId);
+  } catch (error) {
+    toast.add({
+      title: 'Ошибка',
+      description: 'Не удалось создать комнату',
+      color: 'error'
+    });
+  }
 };
 </script>
 

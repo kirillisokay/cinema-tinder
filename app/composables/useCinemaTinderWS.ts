@@ -1,114 +1,139 @@
 import { useWebSocket } from '@vueuse/core'
 import { ref, watch } from 'vue'
 
-let wsInstance: ReturnType<typeof useWebSocket> | null = null;
-let wsRoomId: Ref<string | null> | null = null;
+let wsInstance: ReturnType<typeof useWebSocket> | null = null
+let wsRoomId: Ref<string | null> = ref(null)
 
 export const useCinemaTinderWS = () => {
-  const router = useRouter();
+  if (wsInstance) {
+    return {
+      status: wsInstance.status,
+      data: wsInstance.data,
+      roomId: wsRoomId,
+      joinQueue,
+      createRoom,
+      joinRoom,
+      open: wsInstance.open,
+      close: wsInstance.close,
+    }
+  }
 
-  if (!wsInstance) {
-    const isSecure = location.protocol === "https:";
-    const wsUrl = (isSecure ? "wss://" : "ws://") + location.host + "/_ws";
+  const router = useRouter()
+  const isSecure = process.client && location.protocol === "https:"; const wsUrl = process.client ? (isSecure ? "wss://" : "ws://") + location.host + "/_ws" : null;
 
-    wsRoomId = ref<string | null>(null);
-
-    wsInstance = useWebSocket(wsUrl, {
-      autoReconnect: {
-        retries: 3,
-        delay: 1000,
-        onFailed() {
-          console.error('Failed to connect WebSocket after 3 retries');
-        },
+  wsInstance = useWebSocket(wsUrl, {
+    autoReconnect: {
+      retries: 3,
+      delay: 1000,
+      onFailed() {
+        console.error('Failed to connect WebSocket after 3 retries')
       },
-      heartbeat: {
-        message: JSON.stringify({ type: "ping" }),
-        interval: 30000,
-      },
-    });
+    },
+    heartbeat: {
+      message: JSON.stringify({ type: "ping" }),
+      interval: 30000,
+    },
+  })
 
-    watch(wsInstance.data, (newData) => {
-      if (!newData) return;
+  watch(wsInstance.data, (newData) => {
+    if (!newData) return
+
+
+    try {
+      const message = JSON.parse(newData)
+
+
+      console.log("📩 WS message:", message);
+
+      if (message.type === "room_created") {
+        console.log("✅ Room created:", message.roomId)
+
+        if (wsRoomId) wsRoomId.value = message.roomId
+
+        router.push(`/room/${message.roomId}`)
+      }
+
+      if (message.type === "joined_room") {
+        console.log("✅ Joined room:", message.roomId)
+        wsRoomId.value = message.roomId
+
+        if (router.currentRoute.value.path !== `/room/${message.roomId}`) {
+          router.push(`/room/${message.roomId}`)
+        }
+      }
+
+      if (message.type === "error") {
+        console.error("❌ WS Error:", message.message)
+      }
+
+      if (message.type === "room_full") {
+        console.log("🎉 Room full!")
+      }
+
+      if (message.type === "user_left") {
+        console.log("👋 User left")
+      }
+
+    } catch (e) {
+      console.error("Failed to parse WS message:", e)
+    }
+  })
+
+  function joinQueue() {
+    console.log("📥 Sending join_queue")
+    wsInstance?.send(JSON.stringify({ type: "join_queue" }))
+  }
+
+  function createRoom() {
+    console.log("🎬 Sending create_room")
+    wsInstance?.send(JSON.stringify({ type: "create_room" }))
+  }
+
+  function joinRoom(targetRoomId: string) {
+    console.log("🎬 Joining room:", targetRoomId);
+
+    wsInstance?.send(
+      JSON.stringify({
+        type: "join_room",
+        roomId: targetRoomId
+      })
+    );
+
+    const stop = watch(wsInstance!.data, (raw) => {
+      if (!raw) return;
+      let msg;
 
       try {
-        const message = JSON.parse(newData);
+        msg = JSON.parse(raw);
+      } catch {
+        return;
+      }
 
-        if (message.type === "room_created") {
-          console.log("✅ Room created with ID:", message.roomId);
-          if (wsRoomId) wsRoomId.value = message.roomId;
-        }
+      if (msg.type === "joined_room" && msg.roomId === targetRoomId) {
+        console.log("✅ Joined room successfully:", targetRoomId);
 
-        if (message.type === "joined_room") {
-          console.log("✅ Joined room:", message.roomId);
-          if (wsRoomId) wsRoomId.value = message.roomId;
-        }
+        if (wsRoomId) wsRoomId.value = targetRoomId;
 
-        if (message.type === "error") {
-          console.error("❌ WebSocket error:", message.message);
-        }
+        stop();
 
-        if (message.type === "room_full") {
-          console.log("🎉 Room is full, match ready!");
-        }
+        router.push(`/room/${targetRoomId}`);
+      }
 
-        if (message.type === "user_left") {
-          console.log("👋 Other user left the room");
-        }
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
+      if (msg.type === "error") {
+        console.error("❌ join_room error:", msg.message);
+        stop();
       }
     });
   }
 
-  const joinQueue = () => {
-    console.log("📥 Sending join_queue");
-    wsInstance?.send(JSON.stringify({ type: "join_queue" }));
-  };
-
-  const createRoom = () => {
-    console.log("🎬 Sending create_room");
-    wsInstance?.send(JSON.stringify({ type: "create_room" }));
-
-    const unwatch = watch(wsRoomId!, (newRoomId) => {
-      if (newRoomId) {
-        unwatch();
-      }
-    });
-  };
-
-  const joinRoom = (targetRoomId: string) => {
-    console.log("🎬 Joining room:", targetRoomId);
-    wsInstance?.send(JSON.stringify({
-      type: "join_room",
-      roomId: targetRoomId
-    }));
-
-    const unwatch = watch(wsInstance!.data, (newData) => {
-      if (!newData) return;
-
-      try {
-        const message = JSON.parse(newData);
-
-        if (message.type === "joined_room" && message.roomId === targetRoomId) {
-          unwatch();
-          console.log("✅ Successfully joined, navigating...");
-        } else if (message.type === "error") {
-          unwatch();
-          console.error("❌ Failed to join room:", message.message);
-        }
-      } catch (error) {
-      }
-    });
-  };
-
   return {
-    status: wsInstance!.status,
-    data: wsInstance!.data,
-    roomId: wsRoomId!,
+    status: wsInstance.status,
+    data: wsInstance.data,
+    roomId: wsRoomId,
     joinQueue,
     createRoom,
     joinRoom,
-    open: wsInstance!.open,
-    close: wsInstance!.close,
-  };
-};
+    open: wsInstance.open,
+    close: wsInstance.close,
+  }
+}

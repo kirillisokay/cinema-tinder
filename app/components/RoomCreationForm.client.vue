@@ -16,16 +16,23 @@ const state = reactive<Partial<Schema>>({
 
 const toast = useToast();
 
-async function onSubmit(event: FormSubmitEvent<Schema>) {
+function onSubmit(event: FormSubmitEvent<Schema>) {
   const { roomId } = event.data;
-  
-  toast.add({
-    title: 'Успех',
-    description: 'Сейчас тебя перенаправит в комнату',
-    color: 'success'
-  });
-  
-  joinRoom(roomId);
+
+  try {
+    joinRoom(roomId);
+    toast.add({
+      title: 'Попытка подключения',
+      description: 'Пробуем зайти в комнату...',
+      color: 'info'
+    });
+  } catch (error) {
+    toast.add({
+      title: 'Ошибка',
+      description: error instanceof Error ? error.message : 'Не удалось присоединиться к комнате',
+      color: 'error'
+    });
+  }
 }
 </script>
 

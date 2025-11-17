@@ -4,5 +4,6 @@
   </NuxtLayout>
 </template>
 
-<script>
+<script setup lang="ts">
+useCinemaTinderWS()
 </script>
