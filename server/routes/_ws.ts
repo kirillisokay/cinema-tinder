@@ -127,6 +127,7 @@ export default defineWebSocketHandler({
         users: [room.user1, room.user2],
       });
       peer.publish(roomId, roomFullMsg);
+      peer.send(roomFullMsg);
 
       console.log(
         "User joined room:",

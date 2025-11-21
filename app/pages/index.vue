@@ -3,9 +3,9 @@ const toast = useToast();
 
 const { createRoom } = useCinemaTinderWS();
 
-const handleCreateRoom = async () => {
+const handleCreateRoom = () => {
   try {
-    await createRoom();
+    createRoom();
     toast.add({
       title: 'Успех',
       description: 'Комната создана!',

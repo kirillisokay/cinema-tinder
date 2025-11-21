@@ -15,6 +15,7 @@
     "nuxt": "^4.2.1",
     "uuid": "^13.0.0",
     "vue": "^3.5.22",
-    "vue-router": "^4.5.1"
+    "vue-router": "^4.5.1",
+    "vue3-flashcards": "^1.1.0"
   }
 }
