@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue';
-import { FlashCards } from 'vue3-flashcards'
 const route = useRoute();
 const router = useRouter();
 const roomId = route.params.id as string;
