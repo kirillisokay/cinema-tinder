@@ -1,24 +1,58 @@
 <script setup lang="ts">
 const toast = useToast();
+const { createRoom, error, clearError, isRoomFull, status } = useCinemaTinderWS();
+const isCreating = ref(false);
+const isClient = ref(false);
 
-const { createRoom } = useCinemaTinderWS();
+onMounted(() => {
+  isClient.value = true
+})
 
-const handleCreateRoom = () => {
+const handleCreateRoom = async () => {
+  if (isCreating.value) return;
+
+  isCreating.value = true;
+  clearError();
+
   try {
-    createRoom();
+    await createRoom();
+  } catch (err) {
+    toast.add({
+      title: 'Ошибка соединения',
+      description: err instanceof Error ? err.message : 'Не удалось создать комнату',
+      color: 'error'
+    });
+  } finally {
+    isCreating.value = false;
+  }
+};
+
+watch(error, (newError) => {
+  if (newError) {
+    toast.add({
+      title: 'Ошибка',
+      description: newError,
+      color: 'error',
+      duration: 5000
+    });
+  }
+});
+
+
+const { roomId } = useCinemaTinderWS();
+watch(roomId, (newRoomId, oldRoomId) => {
+  if (newRoomId && !oldRoomId) {
     toast.add({
       title: 'Успех',
       description: 'Комната создана!',
       color: 'success'
     });
-  } catch (error) {
-    toast.add({
-      title: 'Ошибка',
-      description: 'Не удалось создать комнату',
-      color: 'error'
-    });
   }
-};
+});
+
+const isButtonDisabled = computed(() => {
+  return !isClient.value || status.value !== 'OPEN';
+});
 </script>
 
 <template>
@@ -27,15 +61,19 @@ const handleCreateRoom = () => {
       Создай комнату, свайпай фильмы, найди общий фаворит.
     </h1>
 
-    <UButton icon="i-lucide-rocket" size="md" color="secondary" variant="solid" @click="handleCreateRoom">
+    <UButton icon="i-lucide-circle-plus" size="md" color="secondary" variant="solid" :loading="isButtonDisabled"
+      :disabled="isButtonDisabled" @click="handleCreateRoom">
       Создать комнату
     </UButton>
 
+    <p v-if="status === 'CONNECTING'" class="text-sm text-gray-500">
+      Подключение к серверу...
+    </p>
+
     <UModal title="Введи номер комнаты">
-      <UButton icon="i-lucide-rocket" size="md" color="primary" variant="solid">
+      <UButton icon="i-lucide-search" size="md" color="primary" variant="solid">
         Найти комнату
       </UButton>
-
       <template #content>
         <RoomCreationForm />
       </template>

@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue';
+import { useClipboard } from '@vueuse/core'
 const route = useRoute();
 const router = useRouter();
 const roomId = route.params.id as string;
-const { status, roomId: currentRoomId, isRoomFull, joinRoom, leaveRoom } = useCinemaTinderWS();
+const { status, roomId: currentRoomId, isRoomFull, joinRoom } = useCinemaTinderWS();
+const toast = useToast();
+
+const { copy, copied, isSupported } = useClipboard()
+
+const roomIdToCopy = ref(roomId)
 
 onMounted(async () => {
   if (!currentRoomId.value || currentRoomId.value !== roomId) {
@@ -16,6 +22,16 @@ onMounted(async () => {
     }
   }
 });
+
+watch(copied, (isCopied) => {
+  if (isCopied) {
+    toast.add({
+      title: 'Успех',
+      description: 'Номер комнаты скопирован',
+      color: 'success'
+    });
+  }
+})
 
 watch(currentRoomId, (newRoomId) => {
   if (newRoomId && newRoomId !== roomId) {
@@ -35,50 +51,37 @@ watch(status, (newStatus) => {
   }
 });
 
-interface Card {
-  id: number
-  text: string
-  description: string
-  image: string
-}
+const { discoverMovies, getImageUrl } = useTMDB();
 
-const items = ref<Card[]>([
-  {
-    id: 1,
-    text: 'Mountain Adventure',
-    description: 'Explore the peaks and valleys',
-    image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80',
-  },
-  {
-    id: 2,
-    text: 'Beach Paradise',
-    description: 'Relax by the ocean',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
-  },
-  {
-    id: 3,
-    text: 'City Life',
-    description: 'Urban exploration',
-    image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80',
-  },
-  {
-    id: 4,
-    text: 'Forest Retreat',
-    description: 'Connect with nature',
-    image: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=800&q=80',
-  },
-])
+const movies = ref([]);
+const loading = ref(false);
+
+const fetchMovies = async () => {
+  loading.value = true;
+  try {
+    const response = await discoverMovies({ page: 1 });
+    movies.value = response.results;
+  } catch (error) {
+    console.error('Error fetching movies:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchMovies();
+});
 </script>
 
 <template>
   <NuxtLayout name="room">
-    <div class="p-10">
-      <h1 class="text-xl font-bold">Room: {{ roomId }}</h1>
+    <div class="flex items-center flex-col gap-y-8">
+      <h1 class="text-xl font-bold mt-8 cursor-pointer" @click="copy(roomIdToCopy)">Room: {{ roomId }}</h1>
       <p class="text-sm text-gray-600" v-if="currentRoomId !== roomId">
         <span class="text-orange-600">⚠️ Room ID mismatch - redirecting...</span>
       </p>
-      <FilmCardSkeleton v-if="!isRoomFull" />
-      <FlashCards v-else :items="items">
+      <FilmCardSkeleton v-if="isRoomFull" />
+      <FlashCards v-else :items="movies" class="w-full">
         <template #default="{ item }">
           <FilmCard :item="item" />
         </template>
@@ -94,10 +97,9 @@ const items = ref<Card[]>([
             :can-restore="canRestore" />
         </template>
       </FlashCards>
-
-      <div class="mt-4">
-        <UButton size="sm" @click="leaveRoom">
-          Leave Room
+      <div class="mx-auto my-0" v-if="isSupported">
+        <UButton size="lg" @click=copy(roomIdToCopy)>
+          Скопировать номер комнаты.
         </UButton>
       </div>
     </div>
