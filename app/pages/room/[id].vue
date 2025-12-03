@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue';
 import { useClipboard } from '@vueuse/core'
+import type { Movie } from '~/interface/tmdb'
 const route = useRoute();
 const router = useRouter();
 const roomId = route.params.id as string;
@@ -33,6 +34,8 @@ watch(copied, (isCopied) => {
   }
 })
 
+// TODO: Fix redirect to home page no room in ws
+
 watch(currentRoomId, (newRoomId) => {
   if (newRoomId && newRoomId !== roomId) {
     console.log('Room ID mismatch, redirecting to:', newRoomId);
@@ -51,16 +54,16 @@ watch(status, (newStatus) => {
   }
 });
 
-const { discoverMovies, getImageUrl } = useTMDB();
+const { discoverMovies } = useTMDB();
 
-const movies = ref([]);
+const movies = ref<Movie[]>([]);
 const loading = ref(false);
 
 const fetchMovies = async () => {
   loading.value = true;
   try {
     const response = await discoverMovies({ page: 1 });
-    movies.value = response.results;
+    movies.value = response.results
   } catch (error) {
     console.error('Error fetching movies:', error);
   } finally {
