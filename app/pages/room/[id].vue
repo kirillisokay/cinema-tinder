@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue';
-import { useClipboard } from '@vueuse/core'
+import { useClipboard, useShare } from '@vueuse/core'
 import type { Movie } from '~/interface/tmdb'
 const route = useRoute();
 const router = useRouter();
@@ -8,9 +8,16 @@ const roomId = route.params.id as string;
 const { status, roomId: currentRoomId, isRoomFull, joinRoom } = useCinemaTinderWS();
 const toast = useToast();
 
-const { copy, copied, isSupported } = useClipboard()
+const { share, isSupported } = useShare()
+const { copy, copied } = useClipboard()
 
 const roomIdToCopy = ref(roomId)
+
+const shareRoomObject = {
+  title: 'Привет!',
+  text: "Присоединяйся к комнате и решим, что будем смотреть вечером <3",
+  url: location.href
+}
 
 onMounted(async () => {
   if (!currentRoomId.value || currentRoomId.value !== roomId) {
@@ -101,6 +108,11 @@ onMounted(() => {
         </template>
       </FlashCards>
       <div class="mx-auto my-0" v-if="isSupported">
+        <UButton size="lg" @click=share(shareRoomObject)>
+          Пригласить в комнату
+        </UButton>
+      </div>
+      <div class="mx-auto my-0" v-else>
         <UButton size="lg" @click=copy(roomIdToCopy)>
           Скопировать номер комнаты.
         </UButton>
