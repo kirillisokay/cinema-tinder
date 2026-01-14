@@ -1,3 +1,4 @@
+import { en } from "@nuxt/ui/runtime/locale/index.js";
 import { useWebSocket, until } from "@vueuse/core";
 import { ref, watch, type Ref } from "vue";
 
@@ -31,7 +32,6 @@ export const useCinemaTinderWS = () => {
     : null;
 
   // if (!wsUrl) {
-  //    // Handle SSR case gracefully or throw
   //    throw new Error("WebSocket not supported on server side");
   // }
 
@@ -55,7 +55,6 @@ export const useCinemaTinderWS = () => {
 
     try {
       const message = JSON.parse(newData);
-      console.log("📩 WS message:", message);
 
       wsError.value = null;
 
@@ -89,6 +88,10 @@ export const useCinemaTinderWS = () => {
       if (message.type === "user_left") {
         console.log("👋 User left");
         isRoomFull.value = false;
+      }
+
+      if (message.type === "match_found") {
+        console.log("matc on film:", message.filmId);
       }
     } catch (e) {
       console.error("Failed to parse WS message:", e);
@@ -130,12 +133,24 @@ export const useCinemaTinderWS = () => {
 
   async function joinRoom(targetRoomId: string) {
     await ensureConnection();
-    console.log("🎬 Joining room:", targetRoomId);
 
     wsInstance?.send(
       JSON.stringify({
         type: "join_room",
         roomId: targetRoomId,
+      }),
+    );
+  }
+
+  async function likeMovie(filmId: string, liked: boolean) {
+    await ensureConnection();
+
+    wsInstance?.send(
+      JSON.stringify({
+        type: "send_like",
+        roomId: wsRoomId.value,
+        filmId,
+        liked,
       }),
     );
   }

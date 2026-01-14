@@ -20,7 +20,7 @@ export const useTMDB = () => {
       include_adult: false,
       include_video: false,
       language: "ru-RU",
-      page: Math.floor(Math.random() * 1000) + 1,
+      page: Math.floor(Math.random() * 500) + 1,
       sort_by: "popularity.desc",
     };
 

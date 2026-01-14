@@ -69,7 +69,7 @@ const loading = ref(false);
 const fetchMovies = async () => {
   loading.value = true;
   try {
-    const response = await discoverMovies({ page: 1 });
+    const response = await discoverMovies();
     movies.value = response.results
   } catch (error) {
     console.error('Error fetching movies:', error);

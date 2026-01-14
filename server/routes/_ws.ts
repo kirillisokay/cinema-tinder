@@ -10,8 +10,12 @@ type MatchRoom = {
   user1: string;
   user2?: string;
   sockets: {
-    user1: Peer;
+    user1?: Peer;
     user2?: Peer;
+  };
+  likes: {
+    user1: Set<string>;
+    user2: Set<string>;
   };
 };
 
@@ -58,21 +62,25 @@ export default defineWebSocketHandler({
     }
 
     if (data.type === "create_room") {
-      const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 5)
-        }`;
+      const roomId = `room_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 5)}`;
       const newRoom: MatchRoom = {
         roomId,
         user1: userId,
         sockets: { user1: peer },
+        likes: { user1: new Set(), user2: new Set() },
       };
       activeRooms.push(newRoom);
       peer.subscribe(roomId);
 
-      peer.send(JSON.stringify({
-        type: "room_created",
-        roomId,
-        userId,
-      }));
+      peer.send(
+        JSON.stringify({
+          type: "room_created",
+          roomId,
+          userId,
+        }),
+      );
 
       console.log("Room created:", roomId, "by user:", userId);
       return;
@@ -95,19 +103,23 @@ export default defineWebSocketHandler({
       }
 
       if (room.sockets.user1 === peer) {
-        peer.send(JSON.stringify({
-          type: "joined_room",
-          roomId,
-          role: "creator",
-        }));
+        peer.send(
+          JSON.stringify({
+            type: "joined_room",
+            roomId,
+            role: "creator",
+          }),
+        );
         return;
       }
 
       if (room.user2) {
-        peer.send(JSON.stringify({
-          type: "error",
-          message: "Room is full. Maximum 2 users allowed.",
-        }));
+        peer.send(
+          JSON.stringify({
+            type: "error",
+            message: "Room is full. Maximum 2 users allowed.",
+          }),
+        );
         return;
       }
 
@@ -115,11 +127,13 @@ export default defineWebSocketHandler({
       room.sockets.user2 = peer;
       peer.subscribe(roomId);
 
-      peer.send(JSON.stringify({
-        type: "joined_room",
-        roomId,
-        role: "joiner",
-      }));
+      peer.send(
+        JSON.stringify({
+          type: "joined_room",
+          roomId,
+          role: "joiner",
+        }),
+      );
 
       const roomFullMsg = JSON.stringify({
         type: "room_full",
@@ -141,24 +155,38 @@ export default defineWebSocketHandler({
     }
 
     if (data.type === "send_like") {
-      const { roomId, liked } = data;
+      const { roomId, liked, filmId } = data;
       const room = activeRooms.find((r) => r.roomId === roomId);
       if (!room || !room.user2) return;
 
       const sender = room.sockets.user1 === peer ? "user1" : "user2";
-      const target = sender === "user1"
-        ? room.sockets.user2
-        : room.sockets.user1;
+      const target =
+        sender === "user1" ? room.sockets.user2 : room.sockets.user1;
 
-      if (target) {
-        target.send(JSON.stringify({
+      if (liked && filmId) {
+        room.likes[sender].add(filmId);
+        const otherUser = sender === "user1" ? "user2" : "user1";
+        if (room.likes[otherUser].has(filmId)) {
+          const matchMsg = JSON.stringify({
+            type: "match_found",
+            filmId,
+            likedBy: [room.user1, room.user2],
+          });
+
+          room.sockets.user1?.send(matchMsg);
+          room.sockets.user2?.send(matchMsg);
+          console.log("Matched movie:", filmId);
+        }
+      }
+
+      target?.send(
+        JSON.stringify({
           type: "received_like",
           from: userId,
           liked,
-        }));
-      }
-      console.log("Like sent in room:", roomId, "liked:", liked);
-      return;
+          filmId,
+        }),
+      );
     }
 
     console.log("Unknown message type:", data.type);
@@ -169,24 +197,41 @@ export default defineWebSocketHandler({
 
     waitingUsers = waitingUsers.filter((u) => u.peer !== peer);
 
-    activeRooms = activeRooms.filter((room) => {
+    const roomsToRemove: string[] = [];
+
+    activeRooms.forEach((room) => {
       const isUser1 = room.sockets.user1 === peer;
       const isUser2 = room.sockets.user2 === peer;
 
-      if (!isUser1 && !isUser2) return true;
+      if (!isUser1 && !isUser2) return;
 
       const otherSocket = isUser1 ? room.sockets.user2 : room.sockets.user1;
+
       if (otherSocket) {
-        otherSocket.send(JSON.stringify({
-          type: "user_left",
-          roomId: room.roomId,
-          disconnectedUser: isUser1 ? room.user1 : room.user2,
-        }));
+        otherSocket.send(
+          JSON.stringify({
+            type: "user_left",
+            roomId: room.roomId,
+            disconnectedUser: isUser1 ? room.user1 : room.user2,
+          }),
+        );
       }
 
-      console.log("Room cleaned up:", room.roomId);
-      return false;
+      if (isUser1) {
+        room.sockets.user1 = undefined;
+      } else {
+        room.sockets.user2 = undefined;
+      }
+
+      if (!room.sockets.user1 && !room.sockets.user2) {
+        roomsToRemove.push(room.roomId);
+        console.log("Room cleaned up:", room.roomId);
+      }
     });
+
+    activeRooms = activeRooms.filter(
+      (room) => !roomsToRemove.includes(room.roomId),
+    );
   },
 
   error(peer: Peer, error: Error) {
