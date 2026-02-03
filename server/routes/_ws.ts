@@ -1,23 +1,5 @@
 import type { Message, Peer } from "crossws";
-
-type WaitingUser = {
-  userId: string;
-  peer: Peer;
-};
-
-type MatchRoom = {
-  roomId: string;
-  user1: string;
-  user2?: string;
-  sockets: {
-    user1?: Peer;
-    user2?: Peer;
-  };
-  likes: {
-    user1: Set<string>;
-    user2: Set<string>;
-  };
-};
+import type { WaitingUser, MatchRoom } from "~/interface/sockets";
 
 let waitingUsers: WaitingUser[] = [];
 let activeRooms: MatchRoom[] = [];

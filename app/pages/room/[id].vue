@@ -90,7 +90,7 @@ onMounted(() => {
       <p class="text-sm text-gray-600" v-if="currentRoomId !== roomId">
         <span class="text-orange-600">⚠️ Room ID mismatch - redirecting...</span>
       </p>
-      <FilmCardSkeleton v-if="isRoomFull" />
+      <FilmCardSkeleton v-if="!isRoomFull" />
       <FlashCards v-else :items="movies" class="w-full">
         <template #default="{ item }">
           <FilmCard :item="item" />
@@ -112,7 +112,7 @@ onMounted(() => {
           Пригласить в комнату
         </UButton>
       </div>
-      <div class="mx-auto my-0" v-else>
+      <div class="mx-auto my-0" v-if="!isRoomFull">
         <UButton size="lg" @click=copy(roomIdToCopy)>
           Скопировать номер комнаты.
         </UButton>
