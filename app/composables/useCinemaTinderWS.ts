@@ -1,11 +1,12 @@
-import { en } from "@nuxt/ui/runtime/locale/index.js";
 import { useWebSocket, until } from "@vueuse/core";
 import { ref, watch, type Ref } from "vue";
+import type { Movie } from "~/interface/tmdb";
 
 let wsInstance: ReturnType<typeof useWebSocket> | null = null;
 let wsRoomId: Ref<string | null> = ref(null);
 let isRoomFull: Ref<boolean> = ref(false);
 let wsError: Ref<string | null> = ref(null);
+let roomMovies: Ref<Movie[]> = ref([]);
 
 export const useCinemaTinderWS = () => {
   if (wsInstance) {
@@ -14,6 +15,7 @@ export const useCinemaTinderWS = () => {
       data: wsInstance.data,
       roomId: wsRoomId,
       isRoomFull,
+      movies: roomMovies,
       error: wsError,
       joinQueue,
       createRoom,
@@ -29,13 +31,9 @@ export const useCinemaTinderWS = () => {
   const isSecure = import.meta.client && location.protocol === "https:";
   const wsUrl = import.meta.client
     ? (isSecure ? "wss://" : "ws://") + location.host + "/_ws"
-    : null;
+    : "";
 
-  // if (!wsUrl) {
-  //    throw new Error("WebSocket not supported on server side");
-  // }
-
-  wsInstance = useWebSocket(wsUrl, {
+  wsInstance = useWebSocket(wsUrl || "", {
     autoReconnect: {
       retries: 3,
       delay: 1000,
@@ -51,10 +49,12 @@ export const useCinemaTinderWS = () => {
   });
 
   watch(wsInstance.data, (newData) => {
-    if (!newData) return;
+    if (!newData || typeof newData !== 'string') return;
 
+    console.log("📥 Raw WS message received:", newData.substring(0, 200));
     try {
       const message = JSON.parse(newData);
+      console.log("📨 Parsed message type:", message.type);
 
       wsError.value = null;
 
@@ -62,16 +62,26 @@ export const useCinemaTinderWS = () => {
         console.log("✅ Room created:", message.roomId);
         if (wsRoomId) wsRoomId.value = message.roomId;
         isRoomFull.value = false;
+        if (message.movies) {
+          roomMovies.value = message.movies;
+        }
         router.push(`/room/${message.roomId}`);
       }
 
       if (message.type === "joined_room") {
-        console.log("✅ Joined room:", message.roomId);
+        console.log("✅ Joined room:", message.roomId, "current path:", router.currentRoute.value.path);
         wsRoomId.value = message.roomId;
         isRoomFull.value = false;
+        if (message.movies) {
+          roomMovies.value = message.movies;
+        }
 
-        if (router.currentRoute.value.path !== `/room/${message.roomId}`) {
-          router.push(`/room/${message.roomId}`);
+        const targetPath = `/room/${message.roomId}`;
+        if (router.currentRoute.value.path !== targetPath) {
+          console.log("🚀 Navigating to:", targetPath);
+          router.push(targetPath);
+        } else {
+          console.log("Already on room page");
         }
       }
 
@@ -132,7 +142,9 @@ export const useCinemaTinderWS = () => {
   }
 
   async function joinRoom(targetRoomId: string) {
+    console.log("📤 joinRoom called for:", targetRoomId);
     await ensureConnection();
+    console.log("✅ WebSocket connected, sending join_room");
 
     wsInstance?.send(
       JSON.stringify({
@@ -140,6 +152,7 @@ export const useCinemaTinderWS = () => {
         roomId: targetRoomId,
       }),
     );
+    console.log("📨 join_room message sent");
   }
 
   async function likeMovie(filmId: string, liked: boolean) {
@@ -160,6 +173,7 @@ export const useCinemaTinderWS = () => {
     wsInstance?.close();
     wsRoomId.value = null;
     isRoomFull.value = false;
+    roomMovies.value = [];
     navigateTo("/");
   }
 
@@ -168,6 +182,7 @@ export const useCinemaTinderWS = () => {
     data: wsInstance.data,
     roomId: wsRoomId,
     isRoomFull,
+    movies: roomMovies,
     error: wsError,
     joinQueue,
     createRoom,

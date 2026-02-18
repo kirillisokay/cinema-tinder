@@ -3,7 +3,7 @@ import type { Movie } from "~/interface/tmdb";
 
 export interface MatchRoom {
   roomId: string;
-  user1: string;
+  user1?: string;
   user2?: string;
   sockets: {
     user1?: Peer;

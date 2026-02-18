@@ -1,8 +1,41 @@
 import type { Message, Peer } from "crossws";
 import type { WaitingUser, MatchRoom } from "~/interface/sockets";
+import type { DiscoverMoviesResponse, Movie } from "~/interface/tmdb";
 
 let waitingUsers: WaitingUser[] = [];
 let activeRooms: MatchRoom[] = [];
+
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+
+async function fetchMoviesForRoom(): Promise<Movie[]> {
+  try {
+    const config = useRuntimeConfig();
+    const apiKey = config.public.tmdbApiKey;
+
+    const response = await $fetch<DiscoverMoviesResponse>(
+      `${TMDB_BASE_URL}/discover/movie`,
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        query: {
+          include_adult: false,
+          include_video: false,
+          language: "ru-RU",
+          page: Math.floor(Math.random() * 500) + 1,
+          sort_by: "popularity.desc",
+        },
+      },
+    );
+    console.log("Fetched", response.results?.length || 0, "movies from TMDB");
+    return response.results || [];
+  } catch (error: any) {
+    console.error("Failed to fetch movies:", error.message || error);
+    return [];
+  }
+}
 
 export default defineWebSocketHandler({
   open(peer: Peer) {
@@ -10,7 +43,7 @@ export default defineWebSocketHandler({
     peer.send(JSON.stringify({ type: "welcome" }));
   },
 
-  message(peer: Peer, message: Message) {
+  async message(peer: Peer, message: Message) {
     const raw = message.toString().trim();
     if (!raw) return;
 
@@ -47,11 +80,16 @@ export default defineWebSocketHandler({
       const roomId = `room_${Date.now()}_${Math.random()
         .toString(36)
         .substr(2, 5)}`;
+
+      // Fetch movies once for the room
+      const movies = await fetchMoviesForRoom();
+
       const newRoom: MatchRoom = {
         roomId,
         user1: userId,
         sockets: { user1: peer },
         likes: { user1: new Set(), user2: new Set() },
+        movieList: movies,
       };
       activeRooms.push(newRoom);
       peer.subscribe(roomId);
@@ -61,10 +99,19 @@ export default defineWebSocketHandler({
           type: "room_created",
           roomId,
           userId,
+          movies,
         }),
       );
 
-      console.log("Room created:", roomId, "by user:", userId);
+      console.log(
+        "Room created:",
+        roomId,
+        "by user:",
+        userId,
+        "with",
+        movies.length,
+        "movies",
+      );
       return;
     }
 
@@ -90,6 +137,7 @@ export default defineWebSocketHandler({
             type: "joined_room",
             roomId,
             role: "creator",
+            movies: room.movieList || [],
           }),
         );
         return;
@@ -114,6 +162,7 @@ export default defineWebSocketHandler({
           type: "joined_room",
           roomId,
           role: "joiner",
+          movies: room.movieList || [],
         }),
       );
 

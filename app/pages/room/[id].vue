@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue';
+import { computed } from 'vue'
 import { useClipboard, useShare } from '@vueuse/core'
-import type { Movie } from '~/interface/tmdb'
 const route = useRoute();
 const router = useRouter();
 const roomId = route.params.id as string;
-const { status, roomId: currentRoomId, isRoomFull, joinRoom } = useCinemaTinderWS();
+const { status, roomId: currentRoomId, isRoomFull, joinRoom, movies: roomMovies } = useCinemaTinderWS();
 const toast = useToast();
 
 const { share, isSupported } = useShare()
@@ -46,7 +45,7 @@ watch(copied, (isCopied) => {
 watch(currentRoomId, (newRoomId) => {
   if (newRoomId && newRoomId !== roomId) {
     console.log('Room ID mismatch, redirecting to:', newRoomId);
-    router.push(`/room/${newRoomId}`);
+    navigateTo(`/room/${newRoomId}`);
   } else if (!newRoomId && status.value === 'OPEN') {
     console.log('Not in a room, redirecting to home');
     router.push('/');
@@ -61,26 +60,9 @@ watch(status, (newStatus) => {
   }
 });
 
-const { discoverMovies } = useTMDB();
-
-const movies = ref<Movie[]>([]);
-const loading = ref(false);
-
-const fetchMovies = async () => {
-  loading.value = true;
-  try {
-    const response = await discoverMovies();
-    movies.value = response.results
-  } catch (error) {
-    console.error('Error fetching movies:', error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-onMounted(() => {
-  fetchMovies();
-});
+// Movies are now fetched on the server and shared with both users
+const movies = computed(() => roomMovies.value);
+const loading = computed(() => roomMovies.value.length === 0);
 </script>
 
 <template>
