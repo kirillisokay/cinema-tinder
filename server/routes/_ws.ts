@@ -218,6 +218,28 @@ export default defineWebSocketHandler({
           filmId,
         }),
       );
+
+      room.currentIndex = (room.currentIndex || 0) + 1;
+      console.log(`Room ${roomId}: Swiped ${room.currentIndex} movies`);
+
+      if (room.currentIndex === 15) {
+        console.log(`Room ${roomId}: Fetching more movies...`);
+        const newMovies = await fetchMoviesForRoom();
+        if (newMovies.length > 0) {
+          room.movieList = [...(room.movieList || []), ...newMovies];
+          console.log(
+            `Room ${roomId}: Added ${newMovies.length} new movies. Total: ${room.movieList.length}`,
+          );
+
+          const updateMsg = JSON.stringify({
+            type: "movies_updated",
+            movies: room.movieList,
+            totalCount: room.movieList.length,
+          });
+          room.sockets.user1?.send(updateMsg);
+          room.sockets.user2?.send(updateMsg);
+        }
+      }
     }
 
     console.log("Unknown message type:", data.type);

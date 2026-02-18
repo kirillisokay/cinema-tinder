@@ -103,6 +103,13 @@ export const useCinemaTinderWS = () => {
       if (message.type === "match_found") {
         console.log("matc on film:", message.filmId);
       }
+
+      if (message.type === "movies_updated") {
+        console.log("🎬 Movies updated! New total:", message.totalCount);
+        if (message.movies) {
+          roomMovies.value = message.movies;
+        }
+      }
     } catch (e) {
       console.error("Failed to parse WS message:", e);
       wsError.value = "Failed to parse server message";
