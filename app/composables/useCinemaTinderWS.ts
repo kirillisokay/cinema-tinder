@@ -7,6 +7,7 @@ let wsRoomId: Ref<string | null> = ref(null);
 let isRoomFull: Ref<boolean> = ref(false);
 let wsError: Ref<string | null> = ref(null);
 let roomMovies: Ref<Movie[]> = ref([]);
+let matchedFilm: Ref<Movie | null> = ref(null);
 
 export const useCinemaTinderWS = () => {
   if (wsInstance) {
@@ -24,6 +25,9 @@ export const useCinemaTinderWS = () => {
       open: wsInstance.open,
       close: wsInstance.close,
       clearError,
+      likeMovie,
+      skipMovie,
+      matchedFilm,
     };
   }
 
@@ -49,17 +53,14 @@ export const useCinemaTinderWS = () => {
   });
 
   watch(wsInstance.data, (newData) => {
-    if (!newData || typeof newData !== 'string') return;
+    if (!newData || typeof newData !== "string") return;
 
-    console.log("📥 Raw WS message received:", newData.substring(0, 200));
     try {
       const message = JSON.parse(newData);
-      console.log("📨 Parsed message type:", message.type);
 
       wsError.value = null;
 
       if (message.type === "room_created") {
-        console.log("✅ Room created:", message.roomId);
         if (wsRoomId) wsRoomId.value = message.roomId;
         isRoomFull.value = false;
         if (message.movies) {
@@ -69,7 +70,6 @@ export const useCinemaTinderWS = () => {
       }
 
       if (message.type === "joined_room") {
-        console.log("✅ Joined room:", message.roomId, "current path:", router.currentRoute.value.path);
         wsRoomId.value = message.roomId;
         isRoomFull.value = false;
         if (message.movies) {
@@ -78,7 +78,6 @@ export const useCinemaTinderWS = () => {
 
         const targetPath = `/room/${message.roomId}`;
         if (router.currentRoute.value.path !== targetPath) {
-          console.log("🚀 Navigating to:", targetPath);
           router.push(targetPath);
         } else {
           console.log("Already on room page");
@@ -91,21 +90,22 @@ export const useCinemaTinderWS = () => {
       }
 
       if (message.type === "room_full") {
-        console.log("🎉 Room full!");
         isRoomFull.value = true;
       }
 
       if (message.type === "user_left") {
-        console.log("👋 User left");
         isRoomFull.value = false;
       }
 
       if (message.type === "match_found") {
-        console.log("matc on film:", message.filmId);
+        console.log("match on film:", message.filmId);
+        const film = roomMovies.value.find(
+          (m) => String(m.id) === message.filmId,
+        );
+        if (film) matchedFilm.value = film;
       }
 
       if (message.type === "movies_updated") {
-        console.log("🎬 Movies updated! New total:", message.totalCount);
         if (message.movies) {
           roomMovies.value = message.movies;
         }
@@ -120,7 +120,6 @@ export const useCinemaTinderWS = () => {
     if (!wsInstance) return;
     if (wsInstance.status.value === "OPEN") return;
 
-    console.log("🔄 Reconnecting WebSocket...");
     wsError.value = null;
     wsInstance.open();
     try {
@@ -138,20 +137,16 @@ export const useCinemaTinderWS = () => {
 
   async function joinQueue() {
     await ensureConnection();
-    console.log("📥 Sending join_queue");
     wsInstance?.send(JSON.stringify({ type: "join_queue" }));
   }
 
   async function createRoom() {
     await ensureConnection();
-    console.log("🎬 Sending create_room");
     wsInstance?.send(JSON.stringify({ type: "create_room" }));
   }
 
   async function joinRoom(targetRoomId: string) {
-    console.log("📤 joinRoom called for:", targetRoomId);
     await ensureConnection();
-    console.log("✅ WebSocket connected, sending join_room");
 
     wsInstance?.send(
       JSON.stringify({
@@ -159,7 +154,6 @@ export const useCinemaTinderWS = () => {
         roomId: targetRoomId,
       }),
     );
-    console.log("📨 join_room message sent");
   }
 
   async function likeMovie(filmId: string, liked: boolean) {
@@ -171,6 +165,17 @@ export const useCinemaTinderWS = () => {
         roomId: wsRoomId.value,
         filmId,
         liked,
+      }),
+    );
+  }
+
+  async function skipMovie(filmId: string) {
+    await ensureConnection();
+    wsInstance?.send(
+      JSON.stringify({
+        type: "send_skip",
+        roomId: wsRoomId.value,
+        filmId,
       }),
     );
   }
@@ -198,5 +203,8 @@ export const useCinemaTinderWS = () => {
     open: wsInstance.open,
     close: wsInstance.close,
     clearError,
+    likeMovie,
+    skipMovie,
+    matchedFilm,
   };
 };

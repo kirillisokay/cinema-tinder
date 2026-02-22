@@ -21,7 +21,7 @@ async function fetchMoviesForRoom(): Promise<Movie[]> {
           Authorization: `Bearer ${apiKey}`,
         },
         query: {
-          include_adult: false,
+          include_adult: true,
           include_video: false,
           language: "ru-RU",
           page: Math.floor(Math.random() * 500) + 1,
@@ -242,12 +242,37 @@ export default defineWebSocketHandler({
       }
     }
 
+    if (data.type === "send_skip") {
+      const { roomId, filmId } = data;
+      const room = activeRooms.find((r) => r.roomId === roomId);
+      if (!room) return;
+
+      room.skipCount = (room.skipCount || 0) + 1;
+      console.log(`Room ${roomId}: Skip count ${room.skipCount}`);
+
+      if (room.skipCount % 15 === 0) {
+        console.log(
+          `Room ${roomId}: 15 skips reached, fetching more movies...`,
+        );
+        const newMovies = await fetchMoviesForRoom();
+        if (newMovies.length > 0) {
+          room.movieList = [...(room.movieList || []), ...newMovies];
+          const updateMsg = JSON.stringify({
+            type: "movies_updated",
+            movies: room.movieList,
+            totalCount: room.movieList.length,
+          });
+          room.sockets.user1?.send(updateMsg);
+          room.sockets.user2?.send(updateMsg);
+        }
+      }
+      return;
+    }
+
     console.log("Unknown message type:", data.type);
   },
 
   close(peer: Peer, event) {
-    console.log("User disconnected:", peer.toString());
-
     waitingUsers = waitingUsers.filter((u) => u.peer !== peer);
 
     const roomsToRemove: string[] = [];

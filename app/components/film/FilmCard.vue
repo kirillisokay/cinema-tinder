@@ -15,7 +15,7 @@ const { getImageUrl } = useTMDB()
       <h2 class="m-0 mb-2 text-2xl font-semibold text-shadow-lg">
         {{ item.title }}
       </h2>
-      <p class="m-0 text-base text-shadow-lg">
+      <p class="m-0 text-base text-shadow-lg line-clamp-4">
         {{ item.overview }}
       </p>
     </div>

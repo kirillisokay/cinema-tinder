@@ -5,6 +5,7 @@ export interface MatchRoom {
   roomId: string;
   user1?: string;
   user2?: string;
+  skipCount?: number;
   sockets: {
     user1?: Peer;
     user2?: Peer;
